@@ -1,0 +1,197 @@
+---
+title: "Stat 1261 - 3835711 - HW4"
+author: "Charles Leahan"
+date: "9/24/2019"
+output: word_document
+---
+
+
+```{r message=FALSE}
+# Preliminary 
+library(mdsr)
+library(babynames)
+```
+
+```{r}
+#Add column for estimated number of people alive in 2014
+
+BabynamesDist <- make_babynames_dist()
+head(BabynamesDist, 2)
+```
+
+# Exercise 1 : Inspect babynames package
+
+```{r}
+help(package = "babynames")
+```
+
+The following data frames are included: applicants, babynames, births, and lifetables. 
+# Exercise 2 :
+
+```{r}
+length(BabynamesDist) #of variables in each data frame 
+length(babynames)
+
+nrow(BabynamesDist) #total number of cases in 
+nrow(babynames)
+
+head(babynames)
+```
+
+BabynamesDist has 9 variables (as also illustrated in the preliminary section) and 1639722 cases.
+Babynames has 5 variables and 1924665 cases.
+
+
+# Exercise 3: Inspect Figure 3.21
+
+The cases are the individual Josephs. The variables are number of Joshephs born each year and number of Josephs born each year expected to still be alive. Length, color. and color saturation are the visual cues. The coordinate system and scale are appropriate. There are labels for the x,y axis, legends/textboxes for each variable and the median, and a title with a substitle. 
+
+# Exercise 4
+
+```{r}
+attach(MASS::Boston)
+?Boston
+
+mean(MASS::Boston$medv)
+```
+
+The average median price across all variables is $22,532.81.
+
+# Exercise 5 
+
+```{r}
+Binary_medv <- ifelse(medv >25,"rich","not so")
+head(Binary_medv)
+```
+
+# Exercise 6 
+
+```{r}
+library(mdsr)
+head(MLB_teams,2)
+
+```
+
+```{r}
+#Fit as many interpretable variables into one visualizations 
+attach(MLB_teams)
+highlowpayroll <- (payroll>mean(payroll))
+
+  ggplot(data = MLB_teams) +
+  geom_point(aes(x=normAttend, y=WPct, color = teamID ,size = metroPop,shape= highlowpayroll, alpha = attendance)) +
+  facet_grid(yearID ~ lgID) +
+  xlab("Normal Attendance (% of seating)")  +
+  ylab("Winning Percentage") +
+  guides(size = "none", shape = "none", alpha = "none" ) +
+  labs(caption = "*Size <=> Population *Transparency <=> Tot Attnd \n * Triangle => Payroll > mean")
+```
+
+# Exercise 7
+
+```{r}
+
+payroll2 <- payroll/1000000
+ggplot(data = MLB_teams, aes(x= payroll2 , y = WPct)) +
+  geom_point() + 
+  geom_smooth(se = FALSE)+
+  facet_wrap(~lgID, nrow = 2)+
+  xlab("Payroll in $1 Million") +
+  ylab("Winning %") 
+  
+  
+```
+
+# Exercise 8: Recreate the Joseph Plot
+
+```{r message = FALSE}
+
+#Creating the Mapping
+
+joseph <- BabynamesDist %>% filter(name == "Joseph", sex == "M")
+josplot <- ggplot(data = joseph, aes(x=year))
+
+#Create the  Histogram of Expected tba, the Line for Total Births and add Labels  
+
+josplot2 <- josplot +
+  geom_bar(stat = "identity", aes(y = count_thousands * alive_prob),  
+    fill = "#b2d7e9", color = "white") +
+  geom_line(aes(y = count_thousands), size =2) +
+  ylab("Number of People (thousands)") + xlab(NULL)
+
+#Create the Median YOB Line
+library(Hmisc)
+median_yob <- 
+  with (joseph,wtd.quantile(year,est_alive_today,probs = 0.5))
+
+
+#Add the Median Line to the Graph
+
+josplot3 <- josplot2 +
+  geom_bar(stat = "identity", color = "white", fill = "#008fd5",
+           aes(y = ifelse (year == median_yob,est_alive_today / 1000, 0)))
+
+#Add Context
+
+josplot4 <- josplot3 +
+  ggtitle("Age Distribution of American Boys Named Joseph") +
+  geom_text(x = 1935, y = 40, label = "Number of Josephs \n born each year") +
+  geom_text(x = 1915, y = 13, label =
+              "Number of Josephs \n born each year \n estimated to be alive \n on 1/1/2014",
+            colour = "#b2d7e9") +
+  geom_text(x = 2003, y = 40,
+            label = "The median \n living Joseph \n is 37 years old",
+            colour = "darkgray") +
+  geom_curve(x = 1995, xend = 1974, y = 40, yend = 24,
+             arrow = arrow(length = unit(0.3,"cm")), curvature = 0.5) + ylim(0, 42)
+
+josplot4
+
+```
+
+# Exercise 9: Recreate the Josephine Plot
+
+```{r}
+
+josephine <- filter(BabynamesDist, name == "Josephine" & sex == "F")
+jspneplt <-josplot2 %+% josephine
+
+
+#Calculate the Median Year of Birth For the Josephines 
+
+
+median_yob_jn <- 
+  with (josephine,wtd.quantile(year,est_alive_today,probs = 0.5))
+
+#Add Median Line to the Graph
+
+jspneplt2 <- jspneplt +
+  geom_bar(stat = "identity", color = "white", fill = "#008fd5",
+           aes(y = ifelse (year == median_yob_jn,est_alive_today / 1000, 0)))
+
+#Add Context 
+josephinectxt <- jspneplt2 +
+  ggtitle("Age Distribution of American Girls Named Josephine") +
+  geom_text(x = 1940, y = 7.5, label = "Number of Josephines \n born each year") +
+  geom_text(x = 1922, y = 3, label =
+       "Number of Josephines \n born each year \n estimated to be alive \n on  1/1/2014",colour = "#b2d7e9", size = 3, face = "bold") +
+  geom_text(x = 1975, y = 7.5,
+            label = "The median \n living Josephine \n is 73 years old",
+            colour = "darkgray") +
+  geom_curve(x = 1965, xend = 1949, y = 7.5, yend = 2,
+             arrow = arrow(length = unit(0.3,"cm")), curvature = 0.5) + ylim(0, 12.5)
+
+josephinectxt
+
+
+```
+
+Note: In stating "The median living Josephine is 73 years old", I used 2012 to determine the age (as was done in the Joseph graphic). 
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+

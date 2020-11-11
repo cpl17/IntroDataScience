@@ -1,0 +1,84 @@
+---
+title: "Untitled"
+author: "Charles Leahan"
+date: "11/11/2020"
+output: word_document
+---
+
+```{r, echo = FALSE, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(maps)
+```
+
+# Non-Catersian Coordinates
+
+## Geographic Data
+
+```{r}
+
+#Geographic Data
+
+nz <- map_data("nz") 
+ggplot(nz, aes(long, lat, group = group)) +
+  geom_polygon(fill = "white", colour = "black") + 
+  coord_quickmap()
+
+```
+
+## Polar Coordinates 
+
+```{r}
+ggplot(mtcars, aes(x = factor(1), fill = factor(cyl))) + geom_bar(width = 1)+
+    coord_polar(theta = "y") 
+```
+
+Note: theta = 'y' means size of theta determined by count of y, which is calculate in geombar 
+
+
+
+# Statistical Graph Displays 
+
+```{r}
+g <- ggplot(data = SAT_2010, aes(x = math))
+```
+
+```{r}
+#Histogram 
+g + geom_histogram(bins = 30, binwidth = 15)
+```
+
+```{r}
+#Density plot 
+
+g + geom_density(bw = 5)
+```
+
+```{r}
+#QQ Line 
+
+g <- ggplot(SAT_2010,aes(sample = math))
+g + geom_qq() + geom_qq_line()
+
+```
+
+Note: Sample aes is the sample quantiles from the provided field. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 4, fig.height = 2)
+```
+
+

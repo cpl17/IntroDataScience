@@ -1,0 +1,166 @@
+---
+title: ''
+author: "Charles Leahan"
+date: "11/11/2020"
+output: word_document
+---
+
+# Adding Context 
+
+```{r}
+g <- ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(color = class)) +
+  geom_smooth(se = FALSE)
+```
+
+
+```{r}
+#Use labs() titles,captions
+
+g + labs(
+       title = "Fuel efficiency generally decreases with engine size",
+       subtitle = "Two seaters (sports cars) are an exception because of their light weight",
+       caption = "Data from fueleconomy.gov")
+```
+
+```{r}
+#Use labs to change x,y axis labels
+
+g + labs(x = "Engine displacement (L)",y = "Highway fuel economy (mpg)",colour = "Car type")
+
+```
+
+# Scales 
+
+```{r}
+#Compare price and log price
+
+par(mfrow = c(1,2))
+ggplot(diamonds, aes(carat,price)) + geom_bin2d()
+ggplot(diamonds, aes(carat,log10(price))) + geom_bin2d()
+```
+
+```{r}
+#Adjust Scale 
+
+ggplot(diamonds, aes(carat, price)) +
+  geom_bin2d() + 
+  scale_x_log10() + 
+  scale_y_log10()
+```
+
+# Change colors 
+
+```{r}
+#Use scale_colour_brewer to set new color pallete
+
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point(aes(color = drv)) +
+  scale_colour_brewer(palette = "Set1")
+```
+
+# Creating proportion and frequency charts
+
+```{r}
+#Plot cout of each type of cut 
+
+ggplot(data = diamonds) + 
+  stat_count(mapping = aes(x = cut))
+```
+
+## Method 1 
+
+```{r}
+#Proportion
+
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, y = ..prop.., group = 1)) #group = 1 -> group by prop
+```
+
+Note: 
+
+..stat.. performs the statistical function/aggregation on the present field (x)
+
+
+## Method 2 
+
+```{r}
+#Proportion (Manually)
+
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, y = ..count../sum(..count..)))+
+  ylab("Proportion")
+```
+
+# Method 3 
+
+```{r}
+library(tibble)
+demo <- tribble(
+  ~cut,         ~freq,
+  "Fair",       1610,
+  "Good",       4906,
+  "Very Good",  12082,
+  "Premium",    13791,
+  "Ideal",      21551
+)
+```
+
+Note: 
+
+tribble() creates tibbles using an easier to read row-row format. 
+
+```{r}
+#Plot 
+ggplot(data = demo) +
+  geom_bar(mapping = aes(x = reorder(cut,freq), y = freq), stat = 'identity')
+```
+
+Note: 
+
+reorder(x,y) reoders x by y 
+
+stat = 'count' is the default -> counts the # of cases at each x position, cannot be used with y aesthetic 
+
+stat = 'identity -> leaves the data as is
+
+geom_col -> does the above graph and uses stat_identity()
+
+## Changing the color 
+
+```{r}
+#Change the color of the bars
+
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut,fill = cut)) 
+```
+
+```{r}
+#Change transparancy within the bars
+
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut,color = cut),alpha=0.5)
+```
+
+## Adding a variable
+
+```{r}
+#Using clarity to fill 
+
+g <- ggplot(data = diamonds, mapping = aes(x = cut, fill = clarity)) 
+g + geom_bar() 
+```
+
+## Position Arguments 
+
+```{r}
+g + geom_bar(position = "fill")  #Shows conditional proportions
+g + geom_bar(position = "dodge") #Shows distribution
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
