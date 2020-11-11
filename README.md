@@ -4,6 +4,8 @@
 
 Repository contains <mark>Rmd</mark> source code with pdf output files.
 
+The folders contain content reviewed in the course and my own addiontal practice.
+
 ## Introduction
 
 Work done for "Principles of Data Science" under Dr. Junshu Bao in Fall '19.
