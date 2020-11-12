@@ -1,0 +1,205 @@
+---
+title: "Tidy Data"
+author: "Charles Leahan"
+date: "10/25/2019"
+output: word_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+_Tidy Data_
+
+
+Values are organised in two ways. Each value belongs to:
+
+1. A variable, which contains all measurements of the same underlying attribute (like height, temperature, or duration) across units;
+
+2. An observation (case), which contains all values measured on the same unit (like a person, day, or precinct) across attributes.
+
+
+Three rules which make a dataset tidy:
+
+* Each variable must have its own column
+* Each observation must have its own row
+* Each value must have its own cell
+
+Data tidying refers to structuring datasets to facilitate analysis.
+
+
+
+# Gather - Wide to Long
+
+Collapses multiple columns into two columns:
+
+1. Key -> former column names 
+2. Value(n) -> former cells 
+
+
+gather(data, name of the new key column, name of the new value column, names of numeric indexes of columns to collapse)
+
+
+# Spread - Long to Wide
+
+Generates multiple columns from two columns:
+
+1. Each unique value in the key column becomes a column name 
+
+2. Each value in the value column becomes a cell in the new columns 
+
+
+spread(data frame to reshape, column to use for keys, column to use for values)
+
+# Separate
+
+Splits a column by a character string separator (like splitting dates for example)
+
+separate(data,variable,c(sub variables), sep = "-")
+
+# Unite
+
+Unites columns in a single row
+
+Does the the reverse 
+
+
+## Example 1 
+
+```{r}
+#Source 
+
+table1
+```
+
+```{r}
+#Wide to long
+table4a
+gather(table4a,"year","n", 2:3)
+```
+
+```{r}
+#Long to wide
+
+table2
+spread(table2,type,count)
+```
+
+# Missing Values
+
+Explicitly - cell where its value should be instead contains NA
+
+Implictly - does not appear in the dataset 
+
+
+## Making Implicit Values Explicit
+
+Spread():
+
+In the new columns, NAs will be present where there wasn't a k/v pair
+
+```{r}
+stocks %>% 
+  spread(key = year, value = return)
+```
+
+Complete():
+
+Takes cart tuples of the fields provided, and returns them with NA if some combination
+is not present in the data. 
+
+```{r}
+stocks %>% 
+  complete(year,qtr)
+```
+
+Fill():
+
+Carries forward last non-empty values.
+
+```{r}
+treatment %>% 
+  fill(person)
+```
+
+
+# CASE STUDY
+
+```{r}
+head(who)
+```
+
+```{r}
+#Gather
+
+who1 <- who %>% 
+  gather(new_sp_m014:newrel_f65, key = "key", value = "cases", na.rm = TRUE)
+who1
+```
+
+```{r}
+#Zoom in the key 
+
+who1 %>% 
+  count(key)
+```
+
+
+```{r}
+#Recode the key to make more clear
+who2 <- who1 %>% 
+  mutate(key = str_replace(key, "newrel", "new_rel"))
+unique(who2$key)
+```
+
+
+```{r}
+
+#Separate the key by "_" to extract more granular information
+
+who3 <- who2 %>% 
+  separate(key, c("new", "type", "sexage"), sep = "_")
+who3
+```
+
+
+```{r}
+#Separate the sexage key
+
+who4 <- who3 %>% 
+  separate(sexage, c("sex", "age"), sep = 1)
+who4
+```
+
+```{r}
+#Drop Redundant Columns (Variables)
+
+who4 %>% 
+  count(new)
+
+who5 <- who4 %>% 
+  select(-new, -iso2, -iso3)
+
+head(who5)
+```
+
+
+
+str_replace(string, pattern, replacement)
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+

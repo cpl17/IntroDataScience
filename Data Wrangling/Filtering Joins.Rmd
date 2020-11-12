@@ -1,0 +1,153 @@
+---
+title: "Untitled"
+author: "Charles Leahan"
+date: "11/11/2020"
+output: word_document
+---
+
+```{r}
+library(tidyverse)
+library(nycflights13)
+```
+
+# Filtering Joins 
+
+Filtering joins match observations in the same way as mutating joins, but affects the observation, not the variables. 
+
+The first table is the primary tables
+
+* semi_join(x,y) - keeps all observations in x that have a match in y 
+
+* anti_join(x,y) - drops all observations in x that have a match in y 
+
+
+## Semi-joins
+
+Useful for mathcing filtered summary tables back to the original rows 
+
+
+```{r}
+#Top-5 Most Popular Destinations
+top5_dest <- flights %>%  
+  count(dest,sort = TRUE) %>% 
+  head(5)
+top5_dest
+```
+
+
+```{r}
+#Find each flight that went to one of these destinations 
+
+flights %>% 
+  select(month,day,dep_time,arr_time,dep_delay, arr_delay, dest) %>%
+  filter(dest %in% top5_dest$dest) %>% 
+  head(5)
+```
+
+Alternatively, using semi-joins
+
+```{r}
+#Chooses only the observations who's dest matches with a value in top5
+flights %>% 
+  select(month,day,dep_time,arr_time,dep_delay, arr_delay, dest) %>% 
+  semi_join(top5_dest,"dest") %>% 
+  head(5)
+```
+
+## Anti-Joins
+
+Keeps rows that don't have a match.
+
+Useful for diagnosing join mismatches. 
+
+For example, want to find the flights that don't have a matching tail number in the planes table
+
+```{r}
+flights %>% 
+  anti_join(planes, by = "tailnum") %>% 
+  count(tailnum, sort = TRUE)
+```
+
+
+Examples: 
+
+```{r}
+
+#Find the flights whose destination airports are not included in airports
+
+airports0 <- airports %>% 
+  rename("dest"="faa")
+
+flights0 <- flights %>% 
+  dplyr::select(year:day,dep_time,arr_time,origin,dest) %>% 
+  anti_join(airports0, by="dest")
+
+flights0 %>% group_by(dest) %>% summarize(N = n()) %>% arrange(N)
+
+```
+
+
+# Set Operations 
+
+Expect x and y to have the same variables. 
+
+* intersect(x,y) : returns only observations in both
+
+* union(x,y): return unique observations either or 
+
+* setdiff(x,y): return observations in x, not in y 
+
+## Examples 
+
+```{r}
+df1 <- data_frame(x = c(1,2), y = rep(1,2));df1
+
+df2 <- data_frame(x = rep(1,2), y = c(1,2));df2
+
+intersect(df1, df2)
+union(df1, df2)
+
+setdiff(df1,df2)
+setdiff(df2,df1)
+
+```
+
+# Data Import with readr
+
+__readr functions__
+
+* read_csv() reas comma-delimited files
+* read_csv2() reads semicolon-separtated files
+* read_tsv() tab-delimited files
+* read_delim() reads in files with any delimiter
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+

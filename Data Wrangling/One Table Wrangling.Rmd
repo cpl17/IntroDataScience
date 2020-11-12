@@ -1,0 +1,387 @@
+---
+title: 'Data Wrangling: One Table'
+author: "Charles Leahan"
+date: "10/24/2019"
+output: word_document
+---
+
+```{r, warning=FALSE}
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(nycflights13)
+
+```
+
+_Three components of data wrangling_
+
+1. Import Data
+
+2. Tidy Data
+
+3. Transform Data
+
+_Goal_
+
+Get data ready for further analysis - visualization and modeling
+
+_DPLYR_
+
+Grammar of data wrangling
+
+* commonly used data manipulation tools
+* fast performance for in memory operations
+* abstract the interface between the data manipulation operations and the data source
+
+# Tibbles 
+
+Use $ (name) or [[]] (position) for subsetting
+
+```{r}
+class(presidential["name"])
+class(presidential[["name"]])
+```
+
+Can change default printing behavior
+
+```{r}
+print(presidential, n = 2, width = Inf)
+```
+
+Can coerce into tiblle 
+
+```{r}
+iris_tb <- as_tibble(iris)
+```
+
+
+# Five Important Verbs
+
+* select() selects columns (variables)
+* filter() selects rows (observations)
+* arrange() reoders the rows 
+* mutate() creates new variables with functions of existing variables
+* summarize() collapses many values to a single summary
+
+## Select
+
+Select -> selects columns
+
+```{r}
+select(presidential, name, party)
+```
+
+Options:
+
+```{r, include = FALSE}
+#Different options of select(data,options)
+select(presidential,1) #first column
+select(presidential,start) #"start column"
+select(presidential) #Empty
+select(presidential,-end) #All but the last
+select(presidential,-c(2,3))
+
+#Slicing
+flights1<- select(flights, year:arr_time);print(flights1,n=1) #Selects all variables from year to arrival time 
+flights2<- select(flights, -(year:day));print(flights2,n=1)   #Selects all the variables except year through day 
+```
+
+Helper Functions - select names that match with string given according to some rule
+
+1. contains() 
+2. starts_with()
+3. ends_with()
+4. num_range()
+
+```{r}
+flight_time2 <- select(flights, contains("time"))
+
+head(flight_time1)
+```
+
+# Filter Rows 
+
+Note:
+
+* Quotation marks used because Republican is a literal value, not a variable name 
+
+```{r}
+#Filter only Republican candidates
+filter(presidential, party == "Republican")
+
+#Filter years past 2001
+filter(presidential, year(start)>=2001) #year from lubridate
+```
+
+## Logical Conditions 
+
+
+Boolean: 
+
+&, | ,! are and or not 
+
+Set Comparison:
+
+x %in% y which is true if x is an element of Y (See third example)
+
+```{r}
+
+#All flights on decemeber 25th
+
+filter(flights,month == 12 & day == 25)
+
+#All flights that had an arrival delay > 2hrs 
+
+filter(flights,arr_delay >=120)
+```
+
+```{r}
+
+#All flights that were operated by United, American, or Delta 
+
+unique(flights$carrier) #Find all the carrier codes 
+
+ThreeAirlines <-filter(flights, carrier %in% c("UA","AA","DL"))
+table(ThreeAirlines$carrier)
+```
+
+## Combining filter and select 
+
+Reads : Take presidential data frame, then filter the Democratic presidents whose start year is grater than 1973, then select the variable name
+
+```{r}
+presidential %>%
+  filter(start > 1973 & party == "Democratic") %>%
+  dplyr::select(name)
+```
+
+# Arrange 
+
+
+```{r}
+mypresidents %>% arrange(desc(term_length))
+```
+
+Sort by two variables
+
+```{r}
+#descending term length and ascending start for each new length 
+
+mypresidents %>% arrange(desc(term_length),start)
+
+#Sort by term length (ascending) and party 
+
+mypresidents <- presidential %>%
+  mutate(term_length = (end - start)/dyears(1)) %>% 
+  arrange(term_length,party)
+
+mypresidents
+```
+
+
+# Mutate
+
+```{r}
+mypresidents <- presidential %>% 
+  mutate(term_length = (end-start)/dyears(1))
+head(mypresidents,3)
+```
+
+
+## Useful Creation Functions
+
+```{r, include = FALSE}
+#log
+y <- c(2, 4, 8)
+log2(y)
+
+#Exp  
+x <- seq(0,1,0.3)
+z <- exp(x); z
+
+#Mod
+x <- c(10, 5, 3)
+x %/% 3
+x %% 3
+
+#Cumulative and Rolling aggregates
+
+z <- seq(1,5);z
+ 
+cumsum(z) ; cummean(z) ; cumprod(z) ; cummin(z) ; cummax(z)
+```
+
+
+
+# Summarize 
+
+Summarize() collapses a data frame a single row 
+
+Every variables in the output is defined by operations performed on vectors - not individual values 
+
+```{r}
+mypresidents %>%
+  summarize(
+    N = n(), 
+    first_year = min(year(start)), 
+    last_year = max(year(end)),
+    num_dems = sum(party == "Democratic"),
+    years = sum(term_length),
+    avg_term_length = mean(term_length)
+  )
+```
+
+N:  The function n() simply counts the number of rows (observations), used to ensure data aggregation is done correctly 
+first_year:  the smallest start year of the presidents
+last_year:  the largest end year of the presidents
+num_dems:  the number of Democratic presidents
+years:  total term length of the presidents
+avg_term_length:  average term length of the presidents
+
+
+## Use summarize() with group_by()
+
+```{r}
+
+#Compares average term length and sd by party 
+
+mypresidents %>%
+  group_by(party) %>% 
+  summarize(
+    N = n(), 
+    avg_term_length = mean(term_length),
+    std_term_length = sd(term_length)
+  )
+```
+
+```{r}
+
+#Compares the median term length 
+
+mypresidents %>% 
+  group_by(party) %>% 
+  summarize(
+    N= n(),
+    med_term_length = median(term_length))
+```
+
+
+## Useful Summary Functions 
+
+Counts
+
+n() returns the size of the current group
+n_distinct(x) counts the number of distinct values of a variable x
+sum(!is.na(x)) counts the number of non-missing values in x
+
+# Handling Missing Values 
+
+To check whether elements of x is NA -> is.na(x)
+
+To remove the missing values prior to computation -> na.rm=TRUE argument in the function.
+
+To filter out all observations with missing values:
+
+<DATA_FRAME> %>% filter(!is.na(<VARIABLE>)
+
+# Extended Example 
+
+
+What carrier has the longest average departure delay?
+
+```{r}
+#Determine Highest Average Departure Delay
+
+delay<- flights %>%    # Create a new dataset
+  dplyr::select(year,month,day,dep_delay,carrier) %>%  # select variables of interest
+  filter(month == 1 & day == 1 & dep_delay>0) %>%  # pick flights on 1/1/2013 
+  group_by(carrier) %>%   # group the data by carrier
+  summarize(AvgDelay = mean(dep_delay,na.rm=TRUE)) %>%  # ignore missing values
+  arrange(desc(AvgDelay)) # order the summary dataset by average departure delay
+delay
+```
+
+
+What destinations have the longest average arrival delay on Dec 25, 2012?
+
+```{r}
+# Determines which destinations have the longest average arrival delay on christmas 
+
+ArrDelay<- flights %>%    # Create a new dataset
+  dplyr::select(year,month,day,arr_delay,dest) %>%  # select variables of interest
+  filter(month == 12 & day == 25 & arr_delay>0) %>%  # pick flights on 1/1/2013 
+  group_by(dest) %>%   # group the data by carrier
+  summarize(AvgArrDelay = mean(arr_delay,na.rm=TRUE)) %>%  # ignore missing values
+  arrange(desc(AvgArrDelay)) # order the summary dataset by average departure delay
+print(ArrDelay,n=10)
+```
+
+
+What carrier has the highest average speed to San Francisco?
+
+```{r}
+# Which carrier has the highest average speed to San Fran
+
+Speed<- flights %>%    
+  dplyr::select(air_time, distance, dest,carrier) %>%  
+  filter(dest=="SFO") %>%  # pick flights to SFO 
+  mutate(speed=distance/air_time*60,na.rm=TRUE) %>% # calculate speed  
+  group_by(carrier) %>%   # group the data by carrier
+  summarize(AvgSpeed = mean(speed,na.rm=TRUE)) %>%  # ignore missing values
+  arrange(desc(AvgSpeed)) # order the summary dataset by average departure delay
+Speed
+```
+
+```{r}
+# Which Month has the longest departure delay
+
+ldd <- flights %>% 
+  dplyr::select(month,dep_delay) %>% 
+  filter(dep_delay>0) %>% 
+  group_by(month) %>% 
+  summarise(
+    AvgDptDelay = mean(dep_delay)) %>% 
+  arrange(desc(AvgDptDelay))
+
+ldd 
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+

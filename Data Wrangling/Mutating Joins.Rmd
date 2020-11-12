@@ -1,0 +1,195 @@
+---
+title: "Lecture 10"
+author: "Charles Leahan"
+date: "10/2/2019"
+output: word_document
+---
+
+Relational Data Manipulation using dplyr
+
+With Two tables there are three families of verbs that work with two tables at a time:
+
+1. Mutating joins - adds new variables to one table from mathcing rows in another
+2. Filtering joins - filter observations from one table based on whether or not they mathc an observation
+3. Set Operations - comibine the observations in the data sets as if they were elements 
+
+Assumes you have tidy data 
+
+```{r}
+library(tidyverse)
+library(nycflights13)
+
+```
+
+```{r}
+#Inspect Data 
+
+flights_part <- flights %>% 
+  dplyr::select(dep_time,arr_time,carrier:dest)
+print(flights_part,n=3)
+
+head(flights_part, n=3)
+table(flights$origin)
+```
+
+
+
+keys - unique identifiers (like carrier)
+
+(From airlines) Each airline has a unique carrier code -> (From airports) each aiport has a unique faa code that can be used to connect flights and airports
+
+# Joins
+
+## Mutatating 
+
+* A mutating join allows you to combine variables from two tables.
+  
+* It first matches observations by their keys, then copies across variables from one table to the other.
+
+* Like mutate(), the join functions add variables to the right.
+  
+## Inner 
+
+Includes only observations that match in both x and y 
+
+Unmatched rows are not included in the results
+
+```{r}
+x <- tibble(
+  key = 1:3,
+  val_x = c("x1","x2","x3")
+)
+
+y <-tibble(
+  key = c(1,2,4),
+  val_y = c("y1","y2","y3")
+)
+
+x %>%  inner_join(y)
+```
+
+
+#Left Joins
+
+Includes all observations of x (regardless of whether they have a match)
+
+Most commonly used because it ensures that you dont lose observations 
+
+Allows for missing values 
+
+```{r}
+x %>% left_join(y)
+```
+
+## Right Join
+
+Includes all observation in y (regardless of whether they have a match)
+
+```{r}
+x %>%  right_join(y)
+```
+
+
+## Full Join
+
+Includes all observations from x and y 
+
+```{r}
+x %>% full_join(y)
+```
+
+
+
+# Duplicate Keys 
+
+While mutating joins are primarily used to add new variables, they can also generate new observations. 
+
+If a match is not unique, a join will add all possible combinations (the cartesian product) of the matching observations 
+
+```{r}
+x1 <- tibble(
+  key = c(1,1,2,3),
+  val_x = c("x1","x2","x3","x4")
+)
+
+y1 <-tibble(
+  key = c(1,1,2,4),
+  val_y = c("y1","y2","y3","y4")
+)
+```
+
+Note: 
+
+2 x3 y3 is the only unique match
+
+```{r}
+x1 %>% left_join(y1)
+x1 %>% right_join(y1)
+
+```
+
+
+# Example: Adding full carrier names to flights
+
+```{r}
+flights2 <- flights %>%  
+  dplyr::select(year:day,hour,origin,dest,tailnum,carrier)
+
+flights3 <- flights2 %>% 
+  left_join(airlines)
+
+print(flights3,n=5)
+```
+
+
+# Controlling how the tables are matched 
+
+1. Null: 
+
+* if the argument by is omitted, dplyr will match by using all variables that appear in both tables
+
+```{r}
+#Flights and Weather have year, month, day, hour and orgin in common
+
+flights4 <- flights2 %>% left_join(weather)
+flights4
+```
+
+2. By = "key", a character. 
+
+* key is a subset of the common variables in two tables 
+
+```{r}
+# Flights and Planes both have the variable year, but they mean different things. Want to join by tailnum
+
+flights2 %>%  
+  left_join(planes, by = "tailnum")
+```
+
+3. A named character vector: by = c("v1" = "v2)
+
+* This will match variable v1 in table x to variable v2 in table y. 
+
+* The variables from x will be used in the ouput.
+
+```{r}
+#NAs where destination airport is not present in list of airports
+
+flights5 <- flights2 %>% 
+  left_join(airports, c("dest" = "faa"))
+
+print(flights5[c("origin","dest","name")],n=5)
+```
+
+```{r}
+#NAs where origin airport is not present in list of airports
+flights6 <- flights2 %>% 
+  left_join(airports, c("origin" = "faa"))
+
+print(flights6[c("origin","dest","name")],n=5)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
