@@ -1,0 +1,230 @@
+---
+title: "21 - Supervised Learning (Classifcation Methods Cont.)"
+author: "Charles Leahan"
+date: "12/2/2019"
+output: word_document
+---
+
+# Logistic Regression 
+
+
+```{r}
+library(tidyverse)
+
+primary <- read.csv('C:/Users/CPL17/py_all/data_sets/primaries.csv') 
+
+#Clean and Attach Data 
+
+primary <- primary %>% mutate(AFprop = black06 / pop06 * 100) %>% 
+  filter(!is.na(AFprop)) %>%
+  filter(!is.na(winner))
+
+#Create Test and Training Sets 
+
+train <- primary %>% sample_frac(size = .8)
+test <- setdiff(primary,train)
+```
+
+
+```{r}
+
+library(glmnet)
+
+#Formula 
+
+form_lr <- as.formula("winner ~ AFprop + region + pres04winner")
+
+#Construct predictors and fit the model
+
+predictors <- model.matrix(form_lr, data = train)
+fit1 <- glmnet(predictors, train$winner, family = "binomial", lambda = 0)
+
+#Vector of betas 
+fit1$beta
+
+
+```
+
+Note: 
+
+model.matrix() -> transforms the categorical variables in the data into appropriate numeric variables (by creating dummy variables if needed)
+
+inputs of glmnet 
+
+1. matrix model
+2. Y
+3. binomial implies the response variable is binary 
+4. lambda =0 implies non-regularized regression 
+
+
+```{r}
+
+#Construct misclassification function for logistic model 
+
+logistic.misclassrate <- function(test,fit,formula){
+   test %>% 
+  mutate(pred.logistic = predict(fit1, newx = model.matrix(form_lr, data = test), type = "class")) %>% 
+  mutate(misclassify = ifelse(winner != pred.logistic, 1,0)) %>%
+  summarize(misclass.rate=mean(misclassify))
+}
+
+misclassrate<-logistic.misclassrate(test,fit1,form_lr)
+misclassrate
+```
+
+_Regularized logistic regression_
+
+In the regularized regression, λ is called a tuning parameter:
+That is, the result of analysis is tunable by changing the value of λ.
+
+Large λ forces to set many β’s equal to 0:
+
+```{r}
+#Fit regularized model 
+
+fit2 <- glmnet(predictors, train$winner, family = "binomial", lambda = 0.05) # lambda > 0
+fit2$beta
+```
+
+_Model Classification: Cross Validation_ 
+
+
+```{r}
+predictors <- model.matrix(form_lr, data = primary) 
+cv.fit <- cv.glmnet(predictors, primary$winner, family = "binomial", type = "class")
+plot(cv.fit)
+```
+
+
+Illustrates optimal lambda to use for mdoel - or the smallest penaly that still does a good job at classification. 
+Red dots are the mean cross-validated error (over the 10 iterations) with there distributions shown as well. 
+
+Top values are the degrees of freedom. 
+
+
+
+# Random Forests 
+
+```{r}
+
+library(randomForest)
+set.seed(100)
+
+#Drop NA
+primary1 <- primary%>% drop_na()
+
+#Refactor categorical variables 
+primary1$winner=as.factor(primary1$winner)
+primary1$region=as.factor(primary1$region)
+primary1$pres04winner=as.factor(primary1$pres04winner)
+primary1$racetype=as.factor(primary1$racetype)
+
+#Train and Test 
+train1 <- primary1 %>% sample_frac(size = 0.8)
+test1 <- primary1 %>% setdiff(train1)
+
+#Fit Full Model 
+form_rf <- as.formula("winner~region+POP05_SQMI+popUnder30_00+pop65up_00+Bush04+
+AFprop+pct_hs_grad+pct_more_100k+unempChg+presVote04+pop06+white06+pct_homeowner+racetype+ 
+Construction+Manufacturing+FinancialActivities+GoodsProducing+ServiceProviding+Catholic+
+pctUnins00+poverty05+median_hhi05")
+
+mod_forest <- randomForest(formula=form_rf,data=train1, ntree = 1000, mtry =5 ); mod_forest
+```
+
+Note: 
+
+OOB (Out-of-bag) estimate is the mean prediction error on each training sample x_i, using only the trees that did not have x_i in their bootstrap samle 
+
+
+
+```{r}
+confusion_matrix <- function(data,mod){
+  confusion_matrix <- data %>% 
+  mutate(pred = predict(mod, newdata = data, type = "class")) %>%
+  select(winner,pred) %>% table()}
+
+misclass <- function(confusion){
+  misclass <- 1- sum(diag(confusion))/sum(confusion)}
+```
+
+
+```{r}
+#Confusion Matrix 
+
+confusion_rf<-confusion_matrix(test1,mod_forest);confusion_rf
+
+#Misclassification Error 
+
+misclass_rf<-misclass(confusion_rf);misclass_rf
+```
+
+
+
+```{r}
+#Rank the Importance of the Variables 
+
+library(tibble)
+importance(mod_forest) %>% 
+  as.data.frame() %>% 
+  rownames_to_column() %>% 
+  arrange(desc(MeanDecreaseGini)) %>% 
+  head(10)
+```
+
+Possible because each tree uses a different set of variables, allows for comparison. 
+
+Importance measure the total decrease in node impurities from splitting on the variable, averaged over all trees. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+

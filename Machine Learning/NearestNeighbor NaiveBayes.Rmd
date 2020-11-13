@@ -1,0 +1,175 @@
+---
+title: "23 - Supervised Learning (Classification Methods)"
+author: "Charles Leahan"
+date: "12/2/2019"
+output: word_document
+---
+
+
+```{r}
+library(tidyverse)
+
+primary <- read.csv('C:/Users/CPL17/Python/data_sets/primaries.csv') 
+
+#Clean and Attach Data 
+
+primary <- primary %>% mutate(AFprop = black06 / pop06 * 100) %>% 
+  filter(!is.na(AFprop)) %>%
+  filter(!is.na(winner)) 
+
+primary1 <- primary%>% drop_na()
+
+#Refactor categorical variables 
+primary1$winner=as.factor(primary1$winner)
+primary1$region=as.factor(primary1$region)
+primary1$pres04winner=as.factor(primary1$pres04winner)
+primary1$racetype=as.factor(primary1$racetype)
+
+
+primary1 <- primary1 %>% 
+  select(winner, POP05_SQMI,popUnder30_00,pop65up_00,presVote04,kerry04,Bush04,pres04margin,
+         AFprop,pct_less_30k,pct_more_100k,pct_hs_grad,presVote04,pop06,white06,pct_homeowner,
+         unempChg, pct_labor_force,poverty05, median_hhi05,Catholic,FinancialActivities,
+         GoodsProducing,ServiceProviding)
+
+primary1$winner<-as.numeric(primary1$winner)
+```
+
+
+# Nearest Neighbor 
+
+Note: tally does not work, use python
+
+Note: 
+
+```{r}
+#KNN using k = 10 nearest neighbors 
+
+set.seed(100)
+
+train2 <- primary1 %>% sample_frac(size = 0.8)
+test2 <- primary1 %>% setdiff(train2)
+
+mod_knn <- knn(train=train2, test=test2, cl=train2$winner,k=10)
+confusion_knn <- tally(mod_knn~winner,data=test2, format="count")
+confusion_knn
+```
+
+
+# Naive Bayes 
+
+Note: 
+
+Response does not need to be numeric, as it did with knn. 
+
+
+```{r}
+library(e1071)
+primary3 <- primary1 %>% 
+  select(winner, region, POP05_SQMI,popUnder30_00,pop65up_00,pres04winner,
+                      presVote04,kerry04,Bush04,pres04margin,
+                      AFprop,pct_less_30k,pct_more_100k,pct_hs_grad,
+                      presVote04,pop06,white06,pct_homeowner,unempChg,
+                      pct_labor_force,poverty05,median_hhi05,Catholic,
+                      FinancialActivities,GoodsProducing,ServiceProviding)
+set.seed(100)
+train3 <- primary3 %>% sample_frac(size = 0.8);test3 <- primary3 %>% setdiff(train3)
+mod_nb <- naiveBayes(winner~ ., data=train3)
+winner_nb <- predict(mod_nb, newdata=test3)
+confusion_nb<-table(winner_nb, test3$winner);confusion_nb
+```
+
+```{r}
+misclass_test_nb <- 1-sum(diag(confusion_nb))/sum(confusion_nb); misclass_test_nb
+```
+
+
+# Model Evaluation 3: ROC Curves 
+
+```{r}
+library(randomForest)
+set.seed(100)
+
+#Drop NA
+primary1 <- primary%>% drop_na()
+
+#Refactor categorical variables 
+primary1$winner=as.factor(primary1$winner)
+primary1$region=as.factor(primary1$region)
+primary1$pres04winner=as.factor(primary1$pres04winner)
+primary1$racetype=as.factor(primary1$racetype)
+
+#Train and Test 
+train1 <- primary1 %>% sample_frac(size = 0.8)
+test1 <- primary1 %>% setdiff(train1)
+
+#Fit Full Model 
+form_rf <- as.formula("winner~region+POP05_SQMI+popUnder30_00+pop65up_00+Bush04+
+AFprop+pct_hs_grad+pct_more_100k+unempChg+presVote04+pop06+white06+pct_homeowner+racetype+ 
+Construction+Manufacturing+FinancialActivities+GoodsProducing+ServiceProviding+Catholic+
+pctUnins00+poverty05+median_hhi05")
+
+mod_forest <- randomForest(formula=form_rf,data=train1, ntree = 1000, mtry =5 ); mod_forest
+```
+
+
+```{r}
+# Get pred probabilites
+
+win_prob <- mod_forest %>% predict(newdata=test1,type="prob") %>% as.data.frame()
+head(win_prob,3)
+
+```
+
+Note: 
+
+prediction(predictions,labels) - transformes the data into a standardized format 
+peformance(prediction.obj, measure, x.measure) - predictor evaluations 
+
+
+```{r}
+#True positive and false positive rates for the testing data 
+
+pred_rf <- predict(mod_forest, newdata = test1)
+pred_rf_prob <- prediction(win_prob[,2],test1$winner)
+perf_rf <- performance(pred_rf_prob,'tpr','fpr')
+perf_df_rf <- data.frame(perf_rf@x.values, perf_rf@y.values)
+names(perf_df_rf) <- c("fpr", "tpr")
+head(perf_df_rf)
+```
+
+
+
+
+```{r}
+#Creating the ROC curve for random forest 
+
+library(ggplot2)
+
+#The curve
+roc_rf <- ggplot(data=perf_df_rf, aes(x=fpr, y=tpr))+
+  geom_line(color="orange",lwd=1)+
+  geom_abline(intercept=0,slope=1,lty=3)+
+  ylab(perf_rf@y.name)+xlab(perf_rf@x.name)
+
+#The tpr, fpr
+confusion_rf <- table(pred_rf,test1$winner)
+tpr_rf <- confusion_rf["obama","obama"]/sum(confusion_rf[,"obama"])
+fpr_rf <- confusion_rf["obama","clinton"]/sum(confusion_rf[,"clinton"])
+roc_rf+geom_point(x=fpr_rf,y=tpr_rf,size=3,col="blue")
+```
+
+
+
+
+
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+

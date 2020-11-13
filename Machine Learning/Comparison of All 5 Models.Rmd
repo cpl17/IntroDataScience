@@ -1,0 +1,267 @@
+---
+title: "26 - SL - Exercises"
+author: "Charles Leahan"
+date: "12/5/2019"
+output: word_document
+---
+
+Use the NAHNES data set to build a classification model for the binary variable sleeptrouple. 
+
+For each of the following models, build a classifier for sleeptrouble and compare their performance.
+
+Null model
+Logistic regression
+Decision tree
+Random forest
+Naive Bayes
+
+
+```{r, warning=FALSE}
+library(mdsr)   
+library(NHANES)
+```
+
+# Explore Data 
+
+```{r}
+#Observe Distribution of Sleep Trouble
+
+table(NHANES$SleepTrouble)
+
+#Show missing values 
+
+table(NHANES$SleepTrouble,useNA="always")
+```
+
+```{r}
+#See Percentages 
+
+tally(~SleepTrouble,data=NHANES, format = "percent")
+```
+
+```{r}
+#Eliminate missing values 
+
+data1<- NHANES %>%
+  select(SleepTrouble,Gender,Age,Race1,Education,MaritalStatus,HHIncomeMid,Work,Depressed,SmokeNow) %>%   na.omit()
+glimpse(data1)
+```
+
+```{r}
+#Split Data into training and testing sets
+
+set.seed(123498)
+
+train1 <- data1 %>% sample_frac(size = 0.8)
+test1  <- data1 %>% setdiff(train1)
+```
+
+# Null Model
+
+```{r}
+tally(~SleepTrouble,data=train1, format = "percent")
+```
+
+Note that only about 33% of those in the training data set have trouble in sleeping. Thus, the accuracy of the null model is about 67%, since we can get 67% right by just predicting that nobody has sleep trouble.
+
+
+```{r}
+#Alternatively, fit a logistic regression model with only the intercept
+
+mod_null <- glm(SleepTrouble~1,data=train1,family=binomial)
+summary(mod_null)
+```
+
+So, predicted probability of having sleep trouble is e^-.06981/ 1 + e^-.6891 = .3322
+
+# Logistic Regression 
+
+```{r}
+library(glmnet)
+
+#Build Formula with Response variable and all relevant explanatory variables
+
+form<- as.formula(
+  "SleepTrouble ~Gender+Age+Race1+Education+MaritalStatus+HHIncomeMid+Work+Depressed+SmokeNow")
+
+#Construct Predictors (Transform into appropriate numeric variables)
+
+predictors <- 
+  model.matrix(form, data = train1) 
+
+cv.fit <- 
+  cv.glmnet(predictors, train1$SleepTrouble, family = "binomial", type = "class")
+```
+
+Note:
+
+* cvm is the mean cross-validated error a vector of length(lambda)
+* lambda.min is the value of lambda that gives the minimum cvm
+* lambda.1se is the largest value of lambda that error is within 1 se of the minimum
+
+```{r}
+plot(cv.fit)
+```
+
+```{r}
+#Extract optimal value of lambda
+
+lam = cv.fit$lambda.min
+
+#Use this value to regulate logistic regression model
+
+mod_lr <- glmnet(predictors, train1$SleepTrouble, family = "binomial", lambda = lam)
+mod_lr$beta
+```
+
+# Decision Tree 
+
+```{r}
+library(rpart)
+library(rpart.plot)
+mod_tree <- rpart(form,data=train1)
+rpart.plot(mod_tree)
+```
+
+# Random Forest 
+
+```{r}
+library(randomForest)
+
+#Transform Training set to factor variables 
+train2=transform(train1,
+  SleepTrouble=as.factor(SleepTrouble),
+  Gender=as.factor(Gender),
+  Race1=as.factor(Race1),
+  Education=as.factor(Education),
+  MaritalStatus=as.factor(MaritalStatus),
+  Work=as.factor(Work),
+  Depressed=as.factor(Depressed),
+  SmokeNow=as.factor(SmokeNow))
+
+#Transform Testing set to factor variables 
+test2=transform(test1,
+  SleepTrouble=as.factor(SleepTrouble),
+  Gender=as.factor(Gender),
+  Race1=as.factor(Race1),
+  Education=as.factor(Education),
+  MaritalStatus=as.factor(MaritalStatus),
+  Work=as.factor(Work),
+  Depressed=as.factor(Depressed),
+  SmokeNow=as.factor(SmokeNow))
+```
+
+```{r}
+mod_forest <- randomForest(formula=form,data=train2, ntree = 1000, mtry =3 );mod_forest
+```
+
+# Naive Bayes 
+
+```{r}
+library(e1071)
+mod_nb <- naiveBayes(SleepTrouble~ ., data=train1)
+```
+
+
+# Summarize the Modeling Results 
+
+```{r}
+#Matrix of predictions of sleeptrouble for train an test data set
+
+predictions_train <- data.frame(
+  y = as.character(train1$SleepTrouble),
+  type = "train",
+  mod_null = predict(mod_null, newdata=train1,type = "response"),
+  mod_lr = predict(mod_lr,newx = model.matrix(form, data = train1),type = "class"),
+  mod_tree = predict(mod_tree,newdata=train1, type = "class"),
+  mod_forest = predict(mod_forest,newdata=train2, type = "class"),
+  mod_nb = predict(mod_nb, newdata = train1, type = "class")
+  )
+predictions_test <- data.frame(
+  y = as.character(test1$SleepTrouble),
+  type = "test",
+  mod_null = predict(mod_null, newdata = test1, type = "response"),
+  mod_lr=predict(mod_lr,newx = model.matrix(form, data = test1),type = "class"),
+  mod_tree = predict(mod_tree, newdata = test1, type = "class"),
+  mod_forest = predict(mod_forest, newdata = test2, type = "class"),
+  mod_nb = predict(mod_nb, newdata = test1, type = "class")
+)
+
+predictions <- bind_rows(predictions_train, predictions_test)
+glimpse(predictions)
+```
+
+Note: Null Model return a probability and other modesl returned a factor of levels 
+
+```{r}
+library(tidyverse)
+
+predictions_tidy <- predictions %>%
+  mutate(mod_null = ifelse(mod_null < 0.5, "No", "Yes")) %>%
+  gather(key = "model", value = "y_hat", -type, -y)
+glimpse(predictions_tidy)
+```
+
+
+```{r}
+#Final Comparison
+
+predictions_summary <- predictions_tidy %>%
+  group_by(model, type) %>%
+  summarize(N = n(), correct = sum(y == y_hat, 0)) %>%
+  mutate(accuracy = correct / N) %>%
+  ungroup() %>%
+  gather(val_type, val, -model, -type) %>%
+  unite(temp1, type, val_type, sep = "_") %>%   # glue variables
+  spread(temp1, val) %>%
+  arrange(desc(test_accuracy)) %>%
+  select(model, train_accuracy, test_accuracy)
+predictions_summary
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
