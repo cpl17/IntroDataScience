@@ -2,7 +2,7 @@
 
 ## Note
 
-Repository contains <mark>Rmd</mark> source code with pdf output files.
+Repository contains <mark>Rmd</mark> source code (Word files will be uplaoded at a late date).
 
 The folders contain content reviewed in the course and my own addiontal practice.
 
@@ -22,7 +22,7 @@ The course was divided into the following units:
 _Data Visualization:_
 
 Here the focus was on implementing <mark>ggplot</mark> as well as the generic <mark>plot()</mark>
-function to explore and present the meaning the data.
+function to explore and present the meaning behind the data.
 
 _Data Tidying and Wrangling:_
 
@@ -32,10 +32,8 @@ used were <mark>dplyr</mark> and <mark>tidyr</mark>.
 
 _Statistical Models:_
 
-Implementation of simple statistical models to explore and predict data from various sources.
-Bootstrapping was employed when needed. Along with the aformentioned packages, <mark>broom</mark> and <mark>mosaic</mark> were used.
+Explored determining the uncertainty in using various statistics by observing sampling distributions and comparing statistics derived from different methods of sampling. Then, used these statistics to implement simple regression models. Bootstrapping was employed when the distribution of the population was unknown. Along with the aformentioned packages, <mark>broom</mark> and <mark>mosaic</mark> were used.
 
 _Machine Learning:_
 
-Overview of the implementation of fundamental prediction and classification algorithms in R.
-Some packages include <mark>glmnet</mark>, <mark>rpart</mark>, and <mark>Randomforest</mark>.
+Contains an overview of the implementation of fundamental prediction and classification algorithms in R with a focus on binary classification. Used popular evaluation methods to observe the accouracy of the final models. Some packages include <mark>glmnet</mark>, <mark>rpart</mark>, and <mark>Randomforest</mark>.
