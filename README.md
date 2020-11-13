@@ -33,7 +33,7 @@ used were <mark>dplyr</mark> and <mark>tidyr</mark>.
 Statistical Models:
 
 Implementation of simple statistical models to explore and predict data from various sources.
-Bootstrapping was employed when needed. Along with the aformentioned packages, <mark>broom</mark> was used.
+Bootstrapping was employed when needed. Along with the aformentioned packages, <mark>broom</mark> and <mark>mosaic</mark> were used.
 
 Machine Learning:
 
