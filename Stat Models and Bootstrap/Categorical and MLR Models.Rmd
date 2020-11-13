@@ -1,0 +1,161 @@
+---
+title: 'Lecture 17 :  Statistical Modeling (2)'
+author: "Charles Leahan"
+date: "10/23/2019"
+output: word_document
+---
+
+
+
+# Categorical Explanatory Variables 
+
+
+## Example: Railtrail
+
+Exaplain volume by the binary variable weekday (= 1 if weekday)
+
+```{r}
+#Distribution of weekday
+
+library(mosaicData)
+
+RailTrail %>% 
+  group_by(weekday) %>%
+  summarise(mean_volume = mean(volume))
+```
+
+```{r}
+#Box plot to visualize relationship
+
+RailTrail %>% 
+  ggplot(aes(x = weekday, y= volume)) + 
+  geom_boxplot()+
+  coord_flip()
+```
+
+
+```{r}
+#Fit the SLR 
+
+mod2 <- lm(volume ~ weekday, data = RailTrail)
+mod2$coefficients
+```
+
+Note:
+
+* lm picks the alphabetically lowest value of the categorical predictor as the reference group
+* beta0 is the mean volume given x = 0
+* 80 fewer in volume on weekdays
+
+
+
+
+
+# Multiple Regression 
+
+```{r}
+#Fit mlr model
+
+mod3 <- lm(volume ~ hightemp + weekday + hightemp*weekday,  data = RailTrail)
+summary(mod3)
+```
+
+```{r}
+#Plot the model
+
+plotModel(mod3,system = "ggplot2")
+```
+
+
+```{r}
+mod4 <- lm(volume ~ hightemp + cloudcover + weekday,  data = RailTrail)
+summary(mod4)
+```
+
+```{r}
+
+# will use all variables other than volume 
+
+mod5 <- lm(volume ~ .,  data = RailTrail)
+summary(mod5)
+```
+
+Note: 
+
+* NA variables arent estimated due to very high collinearity with other variables. Can be dealt with using regularized or sparse regression. 
+
+
+
+# Model Selection 
+
+Note:
+
+* install "leads" package to get more criterea for model selection
+
+```{r}
+library(MASS)
+mod6 <- lm(volume ~ hightemp + lowtemp + spring + summer + weekday + cloudcover + precip,data=RailTrail)
+step <- stepAIC(mod6,direction = 'both')
+```
+
+
+# Non-Parametric Regression - Scatterplot smoothing 
+
+```{r}
+RTsim <- RailTrail %>% transmute(x = hightemp, y = volume)
+scat_ex <- RTsim %>% ggplot(aes(x, y)) + geom_point()
+
+```
+
+```{r}
+scat_ex + geom_smooth(span = 10)
+scat_ex + geom_smooth(span = 1/5)
+```
+
+Note:
+
+*The second method treats noise as signal
+
+# Data Transformation: Numeric to Categorical 
+
+```{r}
+SF %>% 
+  mutate(long_delay = arr_delay > 60) %>%
+  ggplot(aes(x = hour,  fill= long_delay)) + 
+  geom_bar(position = "fill") +
+  xlab("Scheduled hour of departure") + 
+  ylab("Proportion of long delay") 
+```
+
+```{r}
+SF_longdelay <- SF %>% mutate(long_delay = arr_delay > 60) 
+SF_longdelay %>% ggplot(aes(x = hour,  y = long_delay)) +geom_point()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,fig.width=4, fig.height=2)
+```
+
+

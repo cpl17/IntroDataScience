@@ -1,0 +1,176 @@
+---
+title: "Lecture 16 - Statistical Modeling (Regression)"
+author: "Charles Leahan"
+date: "10/21/2019"
+output: word_document
+---
+```{r, warning = FALSE}
+library(nycflights13)
+library(tidyverse)
+library(ggplot2)
+```
+
+
+_Goal_ 
+
+Use a linear model to explain arrival delay by the time of day. 
+
+
+# Explore trend/ conditional distribution 
+
+Use box and whiskers plot to show the trend 
+
+
+
+```{r}
+
+SF <- flights %>%
+  filter(dest == "SFO", !is.na(arr_delay))
+
+SF %>% ggplot(aes(x = hour, y = arr_delay)) +
+  geom_boxplot(alpha = 0.1, aes(group = hour)) + 
+  geom_smooth(method = "lm") +
+  xlab("Scheduled hour of departure") + 
+  ylab("Arrival delay (minutes)") + 
+  coord_cartesian(ylim = c(-30, 120))
+```
+
+Observe that the arrival delay increase over the course of the day. 
+
+
+# Example: Rail Trail
+
+_Goal_ 
+
+Expalin daily ridership (# of riders and walkers) by the included explanatory variables (temperature, rainfall, cloud cover, and day of week)
+
+```{r}
+library(mosaicData)
+glimpse(RailTrail)
+```
+
+_Using SLR_ 
+
+Expalin using volume as single preditor 
+
+```{r}
+#Plot relationship 
+
+RailTrail %>% ggplot(aes(x = hightemp, y = volume)) + 
+  geom_point()  
+```
+
+The Model is of the form $volume_i = \beta_{0} + \beta_{1}*hightemp_i + \epsilon_i$
+
+These are a family of models, only one that minimizes SOS (fit trend)
+
+# Example: Comparing null model to least square model
+
+```{r}
+# compare the errors of the null(left) and LSM(right) model
+
+RTsim <- RailTrail %>% transmute(x = hightemp, y = volume)
+
+mod <- lm(y ~ x, data = RTsim) 
+head(mod.compare <- cbind(RTsim, 
+    error.left = RTsim$y-mean(RTsim$y), 
+    error.right = resid(mod) ) %>% arrange(x))
+
+# Compare the SSE of the null and LSM
+
+mod.compare %>% 
+  summarize(
+    SSE.left = sum(error.left^2), 
+    SSE.right = sum(error.right^2)
+    )
+```
+
+
+# Quantifying uncertainty in regression 
+
+You never "know" about the population. Instead you assume each member can be model with a linear model with normally distributed errors. 
+
+
+## "know" the population 
+
+```{r}
+#Test for normality 
+wt <- wilcox.test(resid(lm(volume~hightemp, data = RailTrail)))
+tidy(wt)
+```
+
+
+```{r}
+#Fit the model 
+
+mod1 <- lm(volume ~ hightemp, data = RailTrail)
+summary(mod1)
+```
+
+Can use understanding of the normal dist to make inferences about the tru value of regression coefficients. 
+
+Example: Test Null -> Beta1 = 0 
+
+Estimate = 5.702
+t-value = 6.742 with small p-value -> Reject the null 
+
+Confindence intervales can also accurately be calculate due to assumptions of normality. 
+
+```{r}
+#Visualizing the uncertainty 
+
+RailTrail %>%
+  ggplot(aes(x=hightemp, y=volume)) +
+  geom_point() + 
+  geom_smooth(method = "lm", se = TRUE)
+```
+
+## Dont know the population 
+
+If you dont want to make an assumption, bootstrapping gives a computationally heavy but distribution-free answer. 
+
+```{r}
+library(modelr)
+library(purrr)
+```
+
+ 
+```{r}
+#Bootstrap 
+
+boot <- bootstrap(RailTrail,100) #Creates a boot object with (strap, id.) components 
+models <- map(boot$strap, ~ lm(volume ~ hightemp, data = .)) #maps the model to each strap 
+models.tb <- map_df(models, broom::tidy, .id = "id") #maps the output to a tidy table
+models.tb
+```
+
+```{r}
+#Create a 95% CI for Beta1
+models.tb %>% 
+  ungroup() %>% 
+  filter(term=="hightemp") %>% 
+  summarize(LL=quantile(estimate,0.025),UL=quantile(estimate,0.975))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+ 

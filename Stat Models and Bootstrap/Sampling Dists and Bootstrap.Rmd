@@ -1,0 +1,297 @@
+---
+title: "Statistical Modeling (Bootstrap)"
+author: "Charles Leahan"
+date: "10/27/2019"
+output: word_document
+---
+
+```{r}
+library(mdsr)
+library(nycflights13)
+```
+
+Note: 
+
+Treating SF as the population. 
+
+```{r}
+#Sample mean
+SF <- flights %>%
+  filter(dest == "SFO", !is.na(arr_delay))
+
+set.seed(101)
+Sample25 <- SF %>%
+  sample_n(size = 25)
+```
+
+
+Now: Want to estimate the mean arrival delay. 
+
+```{r}
+#Derive the Sample Mean
+
+Sample25 %>% with(mean(arr_delay))
+```
+
+# Reliability of Sample Statistics 
+
+Observe how the statistic varies from one sample to another
+
+Since we have the pop, we can just draw many different samples from the population, each with the same size n. 
+
+```{r}
+#Want to calculate the sample statistic on n = 500 Samples 
+
+n <- 500
+
+Trials <- list()
+for (i in 1:n){
+  Trials[[i]] <-SF %>% 
+    sample_n(size=25,replace = FALSE) %>% 
+    summarize(SampleMean = mean(arr_delay))
+}
+
+Trials_df <- bind_rows(Trials)
+
+head(Trials_df)
+```
+
+```{r}
+favstats(~ SampleMean, data = Trials_df)
+```
+
+So, the mean of the 500 samples has mean 3.034 and sd 9.5. 
+
+Observe that the mean of the sample mean is close to the population mean. 
+
+
+```{r}
+#Plot the distribution of the sample mean
+Trials_df %>% ggplot(aes(x=SampleMean)) + 
+  geom_histogram(aes(y=..density..), fill="green", colour="black",bins=20) +
+  geom_density(colour="purple",lwd=1)
+```
+
+
+Note: 
+
+* Sample Size: number of cases in each sample (n=25)
+
+* Sampling distribution : A collection of the sample statistic from all potential samples of the same size from the population. Approximated here using 500 trials
+
+* Important to observe the shape of the sampling distrubution
+
+* Standard error : the standard deviation of the sampling distribution, the variability of the sampling distribution
+
+* Below is a 95% Confidence Interval of the sample mean
+
+```{r}
+mean(Trials_df$SampleMean) + 2*sd(Trials_df$SampleMean)*c(-1,1) 
+```
+
+The _reliability of a sample statistic_ is typically measured by 
+
+1. The mean of the statistic (better if it is closer to the truth)
+2. The standard error of the statistic (better if small)
+
+
+# The Sampling Distribution 
+
+Note: if the sample size is increased then, the standard error will decrease
+
+```{r}
+
+#Repeating the Above with different sample sizes
+
+Trials.all <-list()
+nvec = c(25,50,100,200)
+for(j in seq_along(nvec)){
+  Trials_n <- list() 
+  n <- nvec[j]
+  for(i in 1:500){
+    Trials_n[[i]] <- SF %>% 
+    sample_n(size = n, replace=FALSE) %>%
+    summarize(SampleMean = mean(arr_delay), n = n)
+  }
+  Trials.all[[j]] <- bind_rows(Trials_n)
+}
+Trials.all <- bind_rows(Trials.all)
+
+tail(Trials.all,3)
+
+```
+```{r}
+#Plot the sample distribution across different sample sizes 
+
+Trials.all %>% 
+  ggplot(aes(x=SampleMean)) + 
+  geom_histogram(bins = 25,fill="orange",colour="black") + 
+  facet_wrap(~n)
+```
+
+Illustrates:
+
+1. Law of Large Numbers : For large sample size n, the sample mean is close to the population mean and the standard error
+2. The CLM : For large n, the sample distribution of the sample mean is approximately normal
+
+
+```{r}
+Trials.all %>% 
+  group_by(n) %>% 
+  summarize(error = sd(SampleMean))
+```
+
+
+Note:
+
+The mean of the sampling dist is still roughly 3.05 but its variation is reduced significantly. 
+
+The above corresponds to 47.7 (the population standard deviation), divided by sqrt(n)
+
+Used to determine at what error is acceptable, if less than 5minutes, used n>100
+
+** As n goes to infinity, standard error goes to zero and the ability of x_bar to model mu becomes better and better. 
+
+
+# Bootstrapping
+
+The bootstrap is a statistical method that allows us to approximate the sampling distribution even without access to the population. 
+
+* Think of our sample itself as if it were the population
+* Draw many new sample from out original sample
+* This process is called resamplin
+
+```{r}
+#Bootstrap procedure of Creating 500 bootstraps from sample25
+
+n <- nrow(Sample25)
+boot <- list() 
+for(i in 1:500){
+    boot[[i]] <- Sample25 %>% 
+      sample_n(size = n, replace = TRUE) %>%
+      summarize(SampleMean = mean(arr_delay))
+  }
+boot_df <- bind_rows(boot)
+```
+
+Note:
+
+*Key difference is that you're sampling with replacement
+
+```{r}
+boot_df %>% ggplot(aes(x = SampleMean)) + 
+  geom_histogram(bins = 20,fill= "orange",colour="black") + 
+  labs(title = "Bootstrap distribution of sample mean of arr_delay (from Sample25)")
+```
+
+Note: 
+
+* Not the same as sampling distribution, but used to estimate parameters such as standard error 
+
+```{r}
+sd(boot_df$SampleMean)
+```
+
+
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Bootstrap Standard Error Estimates
+
+```{r}
+seed0<-sample(1000,1);set.seed(seed0)
+Trials.bootstrap <-list() 
+nvec = c(25,50,100,200)
+for(j in seq_along(nvec)){
+  n <- nvec[j]
+  sample_df <- SF %>% sample_n(size = n)
+  Trials_n <- list() 
+  for(i in 1:500){
+    Trials_n[[i]] <- sample_df %>% 
+      sample_n(size = n, replace = TRUE) %>%
+      summarize(SampleMean = mean(arr_delay, na.rm=TRUE), n = n)
+  }
+  Trials.bootstrap[[j]] <- bind_rows(Trials_n)
+}
+boots.sd <- bind_rows(Trials.bootstrap) %>% 
+  group_by(n) %>% 
+  summarize(error = sd(SampleMean))
+
+boots.sd
+
+Trials.bootstrap
+```
+
+Note:
+
+* Used to quantify the uncertainty in a statistic. 
+
+* In this instance the sample statistic is the sample mean. In practice, usually more complex - like the coefficent estiamte in linear regression model. 
+
+
+#In Class Exercise 1 
+
+```{r}
+#Draw a sample of size 100 from each month
+
+sample.month <- SF %>%
+  select(month,arr_delay) %>% 
+  group_by(month) %>% 
+  sample_n(size = 100)
+head(sample.month)
+```
+
+
+Better to use 95% as the cuttoff point of the travel policy. 
+
+Use quantile(x,p) to calculate this.
+
+```{r}
+
+sample.month %>% 
+  group_by(month) %>% 
+  summarise(p95=quantile(arr_delay,0.95))
+
+```
+
+Calculate the uncertainty of the cutoff point, bootstrapping 1000 times from sample.month. Taking a n=100 sample from each month and caluclating p95. 
+
+```{r}
+
+summary.boots <- list()
+
+for(i in 1:1000){
+  sample.100 <- sample.month %>% 
+    group_by(month) %>% 
+    sample_n(100,replace=TRUE)
+  summary.boots[[i]] <- sample.100 %>% 
+    group_by(month) %>% 
+    summarise(p95=quantile(arr_delay,0.95))
+}
+summary.tb <- bind_rows(summary.boots)
+
+meancut <- summary.tb %>% 
+  group_by(month) %>% 
+  summarise(mean.cut=mean(p95))
+meancut
+
+
+```
+
+# In Class Exercise 3 
+
+```{r}
+
+ggplot(data=summary.tb)+
+  geom_boxplot(mapping=aes(x=as.factor(month),y=p95))+
+  labs(y="95% Percentile of Arrival Delay",x="Month")+
+  coord_flip()
+```
+

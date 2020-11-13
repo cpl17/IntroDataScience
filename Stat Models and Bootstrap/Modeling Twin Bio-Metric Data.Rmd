@@ -1,0 +1,169 @@
+---
+title: "Homework 9"
+author: "Charles Leahan"
+date: "11/8/2019"
+output: word_document
+---
+
+```{r include = FALSE}
+
+library(tidyr)
+library(dplyr)
+library(OpenMx)
+library(ggplot2)
+library(broom)
+
+```
+
+_Goal_
+
+Answer the following questions using Australinan twin sample biometric data
+
+1. Are twins similar in height, weight and bmi?
+2. Are the first-born taller than the second born?
+
+
+# Investigate relationship between heigts 
+
+
+```{r}
+#Scatter Plot 
+
+twinData <- as_tibble(twinData)
+twinData %>% ggplot(aes(ht1,ht2)) +
+  geom_point()
+```
+
+It's clear that the variables move together - as ht1 increases, so does ht2 (at the same rate). This indicates a relationship between the two - specifically a positive one.  
+
+The observations are somewhat closely spread about a 45 degree angle line further indicating similarity.
+
+# Compare hieghts across two other variables
+
+```{r, fig.height=4, fig.width=5}
+twinData %>% ggplot(aes(ht1,ht2)) +
+  geom_point() +
+  facet_grid(zygosity ~ cohort)
+
+```
+
+ Now, there appears to be stronger correlation between height1 and height2 when studied across certain combinations of cohort and zygosity. 
+
+ Specfically, there is close to perfect correlation between ht1 and ht2 in the sets of twins who were in MZMN zygosity group. This is to be expected because Monozygotic twins form when a single zygot splits, and therefore have the same DNA. 
+
+# Test Correlation for each cohort/zygosity combination
+
+```{r}
+#Load the data frame
+corr.df <- twinData %>% 
+  group_by(cohort,zygosity) %>%  
+  do(broom::tidy( cor.test(~ ht1 + ht2, alternative = "greater" , data = . ))) %>%
+  arrange(desc(estimate))
+
+corr.df
+```
+
+As expected, the MZ zygosity groups, specifically the MM have the highest correlation.  
+
+
+```{r}
+#Define significances has having a lower bound greater than .5
+
+sig_twin_cor <- corr.df %>% 
+  mutate(significant = ifelse(conf.low > .5,1,0)) %>%
+  filter(significant == 1)
+  
+head(sig_twin_cor)
+```
+
+
+# Question 8
+
+```{r}
+
+#Add color to the orignal plot
+
+twinData %>% mutate(Correlation = ifelse(zygosity %in% c("MZMM","MZFF"), "Corr","Non.Corr")) %>% 
+  ggplot(aes(ht1,ht2, color = Correlation)) +
+  geom_point() +
+  facet_grid(zygosity ~ cohort) 
+
+```
+
+# Create Facet Grid of Boxplots 
+
+```{r}
+#Make Narrow Data Frame gather heights into order variable
+
+twinData.narrow <- twinData %>% gather(key = "order",value = "height",ht1:ht2) 
+
+#Construct Boxplot
+
+twinData.narrow  %>% 
+  ggplot(aes(order,height)) +
+  geom_boxplot() +
+  facet_grid(cohort~zygosity)
+```
+
+
+# Question 10 
+
+Yes, the hypothesis needs to be re-formulated as "Does order affect the height across different zygosities DZOS twins?"
+
+This difference is most clearly illustrate in the DZOS zygosity group. 
+
+Cohort does not seem to have an effect on hieight. 
+
+
+# Run a t-test to determine if there was a signifiant difference in each group
+
+```{r eval=FALSE}
+#Run T-Test
+
+twin_t <- 
+  twinData %>% 
+  dplyr::select(cohort,zygosity,ht1,ht2) %>% 
+  group_by(cohort,zygosity) %>%
+  do(tidy(t.test(.$ht1, .$ht2, paired = TRUE)))
+
+twin_t
+```
+
+
+```{r}
+#Create Box-Plot with color for significant t-test
+
+twinData.narrow %>%  mutate(Different = ifelse(zygosity == "DZOS", "Yes ","No")) %>% 
+  ggplot(aes(order,height,color = Different)) +
+  geom_boxplot() +
+  facet_grid(cohort~zygosity)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 4, fig.height = 2)
+```
+
