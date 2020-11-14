@@ -2,7 +2,7 @@
 
 ## Note
 
-Repository contains <mark>Rmd</mark> source code (Word files will be uplaoded at a later date).
+Repository contains <code>::before "Rmd" ::after</code> source code (Word files will be uplaoded at a later date).
 
 The folders contain content reviewed in the course and my own addiontal practice.
 
